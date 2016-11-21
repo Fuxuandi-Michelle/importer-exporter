@@ -71,9 +71,9 @@ public class DBRoom implements DBImporter {
 
 	private void init() throws SQLException {
 		StringBuilder stmt = new StringBuilder()
-		.append("insert into ROOM (ID, CLASS, CLASS_CODESPACE, FUNCTION, FUNCTION_CODESPACE, USAGE, USAGE_CODESPACE, BUILDING_ID, ")
-		.append("LOD4_MULTI_SURFACE_ID, LOD4_SOLID_ID) values ")
-		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		.append("insert into ROOM (ID, CLASS, CLASS_CODESPACE, FUNCTION, FUNCTION_CODESPACE, USAGE, USAGE_CODESPACE, BUILDING_ID, ")//8
+		.append("LOD4_MULTI_SURFACE_ID, LOD4_SOLID_ID, STOREY_ID, PODIUM_ID) values ")//4
+		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 		psRoom = batchConn.prepareStatement(stmt.toString());
 
 		surfaceGeometryImporter = (DBSurfaceGeometry)dbImporterManager.getDBImporter(DBImporterEnum.SURFACE_GEOMETRY);
@@ -83,14 +83,14 @@ public class DBRoom implements DBImporter {
 		buildingInstallationImporter = (DBBuildingInstallation)dbImporterManager.getDBImporter(DBImporterEnum.BUILDING_INSTALLATION);
 	}
 
-	public long insert(Room room, long buildingId) throws SQLException {
+	public long insert(Room room, CityGMLClass parent, long parentId) throws SQLException {
 		long roomId = dbImporterManager.getDBId(DBSequencerEnum.CITYOBJECT_ID_SEQ);
 		if (roomId == 0)
 			return 0;
 
 		// CityObject
 		cityObjectImporter.insert(room, roomId);
-
+		
 		// Room
 		// ID
 		psRoom.setLong(1, roomId);
@@ -125,7 +125,30 @@ public class DBRoom implements DBImporter {
 		}
 
 		// BUILDING_ID
-		psRoom.setLong(8, buildingId);
+		//psRoom.setLong(8, buildingId);
+		
+		//parentId
+		switch(parent) {
+		case BUILDING:
+			psRoom.setLong(8, parentId);
+			psRoom.setNull(11, Types.NULL);
+			psRoom.setNull(12, Types.NULL);
+			break;
+		case STOREY:
+			psRoom.setNull(8, Types.NULL);
+			psRoom.setLong(11, parentId);
+			psRoom.setNull(12, Types.NULL);
+			break;
+		case PODIUM:
+			psRoom.setNull(8, Types.NULL);
+			psRoom.setNull(11, Types.NULL);
+			psRoom.setLong(12, parentId);
+			break;
+		default:
+			psRoom.setNull(8, Types.NULL);
+			psRoom.setNull(11, Types.NULL);
+			psRoom.setNull(12, Types.NULL);
+		}
 
 		// Geometry
 		// lod4MultiSurface
@@ -195,6 +218,7 @@ public class DBRoom implements DBImporter {
 
 				if (boundarySurface != null) {
 					String gmlId = boundarySurface.getId();
+					System.out.println("---------------------import room boundary surface----------------------");
 					long id = thematicSurfaceImporter.insert(boundarySurface, room.getCityGMLClass(), roomId);
 
 					if (id == 0) {
@@ -211,6 +235,8 @@ public class DBRoom implements DBImporter {
 
 					// free memory of nested feature
 					boundarySurfaceProperty.unsetBoundarySurface();
+					
+					System.out.println("---------------------END: import room boundary surface----------------------");
 				} else {
 					// xlink
 					String href = boundarySurfaceProperty.getHref();
@@ -263,7 +289,7 @@ public class DBRoom implements DBImporter {
 
 				if (furniture != null) {
 					String gmlId = furniture.getId();
-					long id = buildingFurnitureImporter.insert(furniture, roomId);
+					long id = buildingFurnitureImporter.insert(furniture, room.getCityGMLClass(), roomId);
 
 					if (id == 0) {
 						StringBuilder msg = new StringBuilder(Util.getFeatureSignature(

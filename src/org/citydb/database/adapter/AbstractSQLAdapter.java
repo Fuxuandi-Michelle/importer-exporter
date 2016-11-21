@@ -77,6 +77,12 @@ public abstract class AbstractSQLAdapter {
 		switch (sequence) {
 		case SURFACE_GEOMETRY_ID_SEQ:
 			return "SURFACE_GEOMETRY_SEQ";
+		case MULTI_GEOMETRY_ID_SEQ:
+			return "MULTI_GEOMETRY_SEQ";
+		case SURFACE_OF_MULTI_GEOMETRY_ID_SEQ:
+			return "SURFACE_OF_MULTI_GEOMETRY_SEQ";
+		case POINT_LINE_GEOMETRY_ID_SEQ:
+			return "POINT_LINE_GEOMETRY_SEQ";
 		case CITYOBJECT_ID_SEQ:
 			return "CITYOBJECT_SEQ";
 		case SURFACE_DATA_ID_SEQ:

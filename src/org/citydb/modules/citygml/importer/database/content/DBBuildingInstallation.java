@@ -61,7 +61,10 @@ public class DBBuildingInstallation implements DBImporter {
 	private DBSurfaceGeometry surfaceGeometryImporter;
 	private DBOtherGeometry otherGeometryImporter;
 	private DBImplicitGeometry implicitGeometryImporter;
-
+	
+	//multiGeomtry
+	private DBMultiGeometry multiGeometryImporter;
+	
 	private boolean affineTransformation;
 	private int batchCounter;
 	private int nullGeometryType;
@@ -84,13 +87,15 @@ public class DBBuildingInstallation implements DBImporter {
 		.append("LOD2_BREP_ID, LOD3_BREP_ID, LOD4_BREP_ID, LOD2_OTHER_GEOM, LOD3_OTHER_GEOM, LOD4_OTHER_GEOM, ")
 		.append("LOD2_IMPLICIT_REP_ID, LOD3_IMPLICIT_REP_ID, LOD4_IMPLICIT_REP_ID, ")
 		.append("LOD2_IMPLICIT_REF_POINT, LOD3_IMPLICIT_REF_POINT, LOD4_IMPLICIT_REF_POINT, ")
-		.append("LOD2_IMPLICIT_TRANSFORMATION, LOD3_IMPLICIT_TRANSFORMATION, LOD4_IMPLICIT_TRANSFORMATION) values ")
-		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		.append("LOD2_IMPLICIT_TRANSFORMATION, LOD3_IMPLICIT_TRANSFORMATION, LOD4_IMPLICIT_TRANSFORMATION, STOREY_ID, PODIUM_ID, LOD2_MULTI_GEOM_ID,LOD3_MULTI_GEOM_ID, LOD4_MULTI_GEOM_ID) values ")
+		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 		psBuildingInstallation = batchConn.prepareStatement(stmt.toString());
 
 		surfaceGeometryImporter = (DBSurfaceGeometry)dbImporterManager.getDBImporter(DBImporterEnum.SURFACE_GEOMETRY);
 		otherGeometryImporter = (DBOtherGeometry)dbImporterManager.getDBImporter(DBImporterEnum.OTHER_GEOMETRY);
 		implicitGeometryImporter = (DBImplicitGeometry)dbImporterManager.getDBImporter(DBImporterEnum.IMPLICIT_GEOMETRY);
+		multiGeometryImporter = (DBMultiGeometry)dbImporterManager.getDBImporter(DBImporterEnum.MULTI_GEOMETRY);
+				
 		cityObjectImporter = (DBCityObject)dbImporterManager.getDBImporter(DBImporterEnum.CITYOBJECT);
 		thematicSurfaceImporter = (DBThematicSurface)dbImporterManager.getDBImporter(DBImporterEnum.THEMATIC_SURFACE);
 	}
@@ -145,20 +150,39 @@ public class DBBuildingInstallation implements DBImporter {
 		case BUILDING_PART:
 			psBuildingInstallation.setLong(9, parentId);
 			psBuildingInstallation.setNull(10, Types.NULL);
+			psBuildingInstallation.setNull(26, Types.NULL);
+			psBuildingInstallation.setNull(27, Types.NULL);
 			break;
 		case BUILDING_ROOM:
 			psBuildingInstallation.setNull(9, Types.NULL);
 			psBuildingInstallation.setLong(10, parentId);
+			psBuildingInstallation.setNull(26, Types.NULL);
+			psBuildingInstallation.setNull(27, Types.NULL);
+			break;
+		case STOREY:
+			psBuildingInstallation.setNull(9, Types.NULL);
+			psBuildingInstallation.setNull(10, Types.NULL);
+			psBuildingInstallation.setLong(26, parentId);
+			psBuildingInstallation.setNull(27, Types.NULL);
+			break;
+		case PODIUM:
+			psBuildingInstallation.setNull(9, Types.NULL);
+			psBuildingInstallation.setNull(10, Types.NULL);
+			psBuildingInstallation.setNull(26, Types.NULL);
+			psBuildingInstallation.setLong(27, parentId);
 			break;
 		default:
 			psBuildingInstallation.setNull(9, Types.NULL);
 			psBuildingInstallation.setNull(10, Types.NULL);
+			psBuildingInstallation.setNull(26, Types.NULL);
+			psBuildingInstallation.setNull(27, Types.NULL);
 		}
 
 		// Geometry
 		for (int i = 0; i < 3; i++) {
 			GeometryProperty<? extends AbstractGeometry> geometryProperty = null;
 			long geometryId = 0;
+			long multiGeometryId = 0;
 			GeometryObject geometryObject = null;
 
 			switch (i) {
@@ -180,7 +204,10 @@ public class DBBuildingInstallation implements DBImporter {
 						geometryId = surfaceGeometryImporter.insert(abstractGeometry, buildingInstallationId);
 					else if (otherGeometryImporter.isPointOrLineGeometry(abstractGeometry))
 						geometryObject = otherGeometryImporter.getPointOrCurveGeometry(abstractGeometry);
+					else if (multiGeometryImporter.isMultiGeometry(abstractGeometry))
+						multiGeometryId = multiGeometryImporter.insert(abstractGeometry, buildingInstallationId);
 					else {
+						System.out.println("---------------------not surface,point,line geometry----------------------");
 						StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
 								buildingInstallation.getCityGMLClass(), 
 								buildingInstallation.getId()));
@@ -214,6 +241,11 @@ public class DBBuildingInstallation implements DBImporter {
 				psBuildingInstallation.setObject(14 + i, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getDatabaseObject(geometryObject, batchConn));
 			else
 				psBuildingInstallation.setNull(14 + i, nullGeometryType, nullGeometryTypeName);
+			
+			if(multiGeometryId != 0)
+				psBuildingInstallation.setLong(28 + i, multiGeometryId);
+			else 
+				psBuildingInstallation.setNull(28 + i, Types.NULL);
 		}
 
 		// implicit geometry
@@ -384,6 +416,7 @@ public class DBBuildingInstallation implements DBImporter {
 		psBuildingInstallation.setNull(15, nullGeometryType, nullGeometryTypeName);
 
 		long geometryId = 0;
+		long multiGeometryId = 0;
 		GeometryObject geometryObject = null;
 
 		if (intBuildingInstallation.isSetLod4Geometry()) {
@@ -395,6 +428,8 @@ public class DBBuildingInstallation implements DBImporter {
 					geometryId = surfaceGeometryImporter.insert(abstractGeometry, intBuildingInstallationId);
 				else if (otherGeometryImporter.isPointOrLineGeometry(abstractGeometry))
 					geometryObject = otherGeometryImporter.getPointOrCurveGeometry(abstractGeometry);
+				else if (multiGeometryImporter.isMultiGeometry(abstractGeometry))
+					multiGeometryId = multiGeometryImporter.insert(abstractGeometry, intBuildingInstallationId);
 				else {
 					StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
 							intBuildingInstallation.getCityGMLClass(), 
@@ -429,7 +464,13 @@ public class DBBuildingInstallation implements DBImporter {
 			psBuildingInstallation.setObject(16, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getDatabaseObject(geometryObject, batchConn));
 		else
 			psBuildingInstallation.setNull(16, nullGeometryType, nullGeometryTypeName);
-
+		
+		if(multiGeometryId != 0)
+			psBuildingInstallation.setLong(30, multiGeometryId);
+		else 
+			psBuildingInstallation.setNull(30, Types.NULL);
+		
+		
 		// implicit geometry
 		psBuildingInstallation.setNull(17, Types.NULL);
 		psBuildingInstallation.setNull(18, Types.NULL);

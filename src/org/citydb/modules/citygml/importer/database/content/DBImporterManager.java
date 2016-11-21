@@ -131,6 +131,20 @@ public class DBImporterManager {
 			case IMPLICIT_GEOMETRY:
 				dbImporter = new DBImplicitGeometry(batchConn, this);
 				break;
+				
+			//MultiGeometry
+			case SURFACE_OF_MULTI_GEOMETRY:
+				dbImporter = new DBSurfaceOfMultiGeometry(batchConn, config, this);
+				break;
+			
+			case POINT_LINE_GEOMETRY:
+				dbImporter = new DBPointLineGeometry(batchConn, config, this);
+				break;
+				
+			case MULTI_GEOMETRY:
+				dbImporter = new DBMultiGeometry(batchConn, config, this);
+				break;
+				
 			case CITYOBJECT:
 				dbImporter = new DBCityObject(batchConn, config, this);
 				break;
@@ -152,6 +166,48 @@ public class DBImporterManager {
 			case BUILDING_INSTALLATION:
 				dbImporter = new DBBuildingInstallation(batchConn, config, this);
 				break;
+				
+			//buildingExtra
+			
+			case STOREY:
+				dbImporter = new DBStorey(batchConn, this);
+				break;
+			case PODIUM:
+				dbImporter = new DBPodium(batchConn, this);
+				break;
+			case BEAM:
+				dbImporter = new DBBeam(batchConn, config, this);
+				break;
+			case BUILDING_COLUMN:
+				dbImporter = new DBBuildingColumn(batchConn, config, this);
+				break;
+			case COVERING:
+				dbImporter = new DBCovering(batchConn, config, this);
+				break;
+			case FLOW_TERMINAL:
+				dbImporter = new DBFlowTerminal(batchConn, config, this);
+				break;
+			case RAILING:
+				dbImporter = new DBRailing(batchConn, config, this);
+				break;
+			case RAMP:
+				dbImporter = new DBRamp(batchConn, config, this);
+				break;
+			case RAMP_FLIGHT:
+				dbImporter = new DBRampFlight(batchConn, config, this);
+				break;
+			case SLAB:
+				dbImporter = new DBSlab(batchConn, config, this);
+				break;
+			case STAIR:
+				dbImporter = new DBStair(batchConn, config, this);
+				break;
+			case STAIR_FLIGHT:
+				dbImporter = new DBStairFlight(batchConn, config, this);
+				break;
+				
+			//=============================	
+				
 			case THEMATIC_SURFACE:
 				dbImporter = new DBThematicSurface(batchConn, this);
 				break;
@@ -400,7 +456,6 @@ public class DBImporterManager {
 			saxWriter.setNamespaceContext(ctx);
 
 			Marshaller marshaller = jaxbBuilder.getJAXBContext().createMarshaller();
-			marshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
 			JAXBElement<?> jaxbElement = jaxbMarshaller.marshalJAXBElement(object);
 			if (jaxbElement != null)
 				marshaller.marshal(jaxbElement, saxWriter);

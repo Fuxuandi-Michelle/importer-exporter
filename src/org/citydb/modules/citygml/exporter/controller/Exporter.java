@@ -191,8 +191,14 @@ public class Exporter implements EventHandler {
 			}
 		}
 
-		// log index status
+		// check and log index status
 		try {
+			if (!dbPool.getActiveDatabaseAdapter().getUtil().isIndexEnabled("CITYOBJECT", "ENVELOPE")) {
+				LOG.error("Spatial indexes are not activated.");
+				LOG.error("Please use the database tab to activate the spatial indexes.");
+				return false;
+			}
+			
 			for (IndexType type : IndexType.values())
 				dbPool.getActiveDatabaseAdapter().getUtil().getIndexStatus(type).printStatusToConsole();
 		} catch (SQLException e) {
@@ -393,7 +399,7 @@ public class Exporter implements EventHandler {
 
 					ioWriterPool = new SingleWorkerPool<SAXEventBuffer>(
 							"citygml_writer_pool",
-							new IOWriterWorkerFactory(saxWriter),
+							new IOWriterWorkerFactory(saxWriter, eventDispatcher),
 							100,
 							false);
 
@@ -437,8 +443,7 @@ public class Exporter implements EventHandler {
 								new CityModelInfo());
 
 						writer.writeStartDocument();
-						saxWriter.flush();
-					} catch (CityGMLWriteException | SAXException e) {
+					} catch (CityGMLWriteException e) {
 						throw new CityGMLExportException("Failed to write CityGML file.", e);
 					}
 
@@ -595,13 +600,13 @@ public class Exporter implements EventHandler {
 
 					if (cause instanceof SQLException) {
 						Iterator<Throwable> iter = ((SQLException)cause).iterator();
-						LOG.error("A SQL error occured: " + iter.next().getMessage().trim());
+						LOG.error("A SQL error occured: " + iter.next().getMessage());
 						while (iter.hasNext())
-							LOG.error("Cause: " + iter.next().getMessage().trim());
+							LOG.error("Cause: " + iter.next().getMessage());
 					} else {
-						LOG.error("An error occured: " + cause.getMessage().trim());
+						LOG.error("An error occured: " + cause.getMessage());
 						while ((cause = cause.getCause()) != null)
-							LOG.error("Cause: " + cause.getMessage().trim());
+							LOG.error("Cause: " + cause.getMessage());
 					}
 				}
 

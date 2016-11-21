@@ -39,6 +39,7 @@ import org.citydb.log.Logger;
 import org.citydb.modules.citygml.common.database.xlink.DBXlinkSurfaceGeometry;
 import org.citydb.util.Util;
 import org.citygml4j.geometry.Matrix;
+import org.citygml4j.model.citygml.CityGMLClass;
 import org.citygml4j.model.citygml.building.BuildingFurniture;
 import org.citygml4j.model.citygml.core.ImplicitGeometry;
 import org.citygml4j.model.citygml.core.ImplicitRepresentationProperty;
@@ -57,7 +58,10 @@ public class DBBuildingFurniture implements DBImporter {
 	private DBOtherGeometry otherGeometryImporter;
 	private DBImplicitGeometry implicitGeometryImporter;
 	private DBOtherGeometry geometryImporter;
-
+	
+	//multiGeometry
+	private DBMultiGeometry multiGeometryImporter;
+	
 	private boolean affineTransformation;
 	private int batchCounter;
 
@@ -73,8 +77,8 @@ public class DBBuildingFurniture implements DBImporter {
 		StringBuilder stmt = new StringBuilder()
 		.append("insert into BUILDING_FURNITURE (ID, CLASS, CLASS_CODESPACE, FUNCTION, FUNCTION_CODESPACE, USAGE, USAGE_CODESPACE, ROOM_ID, ")
 		.append("LOD4_BREP_ID, LOD4_OTHER_GEOM, ")
-		.append("LOD4_IMPLICIT_REP_ID, LOD4_IMPLICIT_REF_POINT, LOD4_IMPLICIT_TRANSFORMATION) values ")
-		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+		.append("LOD4_IMPLICIT_REP_ID, LOD4_IMPLICIT_REF_POINT, LOD4_IMPLICIT_TRANSFORMATION, STOREY_ID, LOD4_MULTI_GEOM_ID) values ")
+		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 		psBuildingFurniture = batchConn.prepareStatement(stmt.toString());
 
 		surfaceGeometryImporter = (DBSurfaceGeometry)dbImporterManager.getDBImporter(DBImporterEnum.SURFACE_GEOMETRY);
@@ -82,9 +86,11 @@ public class DBBuildingFurniture implements DBImporter {
 		cityObjectImporter = (DBCityObject)dbImporterManager.getDBImporter(DBImporterEnum.CITYOBJECT);
 		implicitGeometryImporter = (DBImplicitGeometry)dbImporterManager.getDBImporter(DBImporterEnum.IMPLICIT_GEOMETRY);
 		geometryImporter = (DBOtherGeometry)dbImporterManager.getDBImporter(DBImporterEnum.OTHER_GEOMETRY);
+		
+		multiGeometryImporter = (DBMultiGeometry)dbImporterManager.getDBImporter(DBImporterEnum.MULTI_GEOMETRY);
 	}
 
-	public long insert(BuildingFurniture buildingFurniture, long roomId) throws SQLException {
+	public long insert(BuildingFurniture buildingFurniture, CityGMLClass parent, long parentId) throws SQLException {
 		long buildingFurnitureId = dbImporterManager.getDBId(DBSequencerEnum.CITYOBJECT_ID_SEQ);
 		if (buildingFurnitureId == 0)
 			return 0;
@@ -126,10 +132,26 @@ public class DBBuildingFurniture implements DBImporter {
 		}
 
 		// ROOM_ID
-		psBuildingFurniture.setLong(8, roomId);
-
+		//psBuildingFurniture.setLong(8, parentId);
+		
+		//parentId
+		switch(parent) {
+		case BUILDING_ROOM:
+			psBuildingFurniture.setLong(8, parentId);
+			psBuildingFurniture.setNull(14, Types.NULL);
+			break;
+		case STOREY:
+			psBuildingFurniture.setNull(8, Types.NULL);
+			psBuildingFurniture.setLong(14, parentId);
+			break;
+		default:
+			psBuildingFurniture.setNull(8,Types.NULL);
+			psBuildingFurniture.setNull(14, Types.NULL);
+		}
+		
 		// Geometry		
 		long geometryId = 0;
+		long multiGeometryId = 0;
 		GeometryObject geometryObject = null;
 		
 		if (buildingFurniture.isSetLod4Geometry()) {
@@ -141,6 +163,8 @@ public class DBBuildingFurniture implements DBImporter {
 					geometryId = surfaceGeometryImporter.insert(abstractGeometry, buildingFurnitureId);
 				else if (otherGeometryImporter.isPointOrLineGeometry(abstractGeometry))
 					geometryObject = otherGeometryImporter.getPointOrCurveGeometry(abstractGeometry);
+				else if (multiGeometryImporter.isMultiGeometry(abstractGeometry))
+					multiGeometryId = multiGeometryImporter.insert(abstractGeometry, buildingFurnitureId);
 				else {
 					StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
 							buildingFurniture.getCityGMLClass(), 
@@ -176,7 +200,13 @@ public class DBBuildingFurniture implements DBImporter {
 		else
 			psBuildingFurniture.setNull(10, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryType(),
 					dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryTypeName());
-
+		
+		if(multiGeometryId != 0)
+			psBuildingFurniture.setLong(15, multiGeometryId);
+		else 
+			psBuildingFurniture.setNull(15, Types.NULL);
+		
+		
 		// implicit geometry
 		GeometryObject pointGeom = null;
 		String matrixString = null;

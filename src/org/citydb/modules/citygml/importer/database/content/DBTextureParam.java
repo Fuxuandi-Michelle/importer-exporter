@@ -50,8 +50,8 @@ public class DBTextureParam implements DBImporter {
 
 	private void init() throws SQLException {		
 		StringBuilder texCoordListStmt = new StringBuilder()
-		.append("insert into TEXTUREPARAM (SURFACE_GEOMETRY_ID, IS_TEXTURE_PARAMETRIZATION, WORLD_TO_TEXTURE, TEXTURE_COORDINATES, SURFACE_DATA_ID) values ")
-		.append("(?, ?, ?, ?, ?)");
+		.append("insert into TEXTUREPARAM (SURFACE_GEOMETRY_ID, IS_TEXTURE_PARAMETRIZATION, WORLD_TO_TEXTURE, TEXTURE_COORDINATES, SURFACE_DATA_ID, SURFACE_OF_MULTI_GEOM_ID) values ")
+		.append("(?, ?, ?, ?, ?, ?)");
 		psTextureParam = batchConn.prepareStatement(texCoordListStmt.toString());
 	}
 
@@ -61,19 +61,37 @@ public class DBTextureParam implements DBImporter {
 		psTextureParam.setNull(3, Types.VARCHAR);
 		psTextureParam.setObject(4, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getDatabaseObject(target.compileTextureCoordinates(), batchConn));
 		psTextureParam.setLong(5, surfaceDataId);
-
+		psTextureParam.setNull(6, Types.NULL);
+		
 		addBatch();
 	}
 
 	public void insert(String worldToTexture, long surfaceDataId, long surfaceGeometryId) throws SQLException {
-		psTextureParam.setLong(1, surfaceGeometryId);
-		psTextureParam.setInt(2, 1);
-		psTextureParam.setString(3, worldToTexture);
-		psTextureParam.setNull(4, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryType(),
-				dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryTypeName());
-		psTextureParam.setLong(5, surfaceDataId);
+		try {
+			
+			psTextureParam.setLong(1, surfaceGeometryId);
+			psTextureParam.setInt(2, 1);
+			psTextureParam.setString(3, worldToTexture);
+			psTextureParam.setNull(4, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryType(),
+					dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryTypeName());
+			psTextureParam.setLong(5, surfaceDataId);
+			psTextureParam.setNull(6, Types.NULL);
+			addBatch();
+			
+		} catch(SQLException se) {
+			
+			//surfaceOfMultiGeometryID
 
-		addBatch();
+			psTextureParam.setNull(1, Types.NULL);
+			psTextureParam.setInt(2, 1);
+			psTextureParam.setString(3, worldToTexture);
+			psTextureParam.setNull(4, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryType(),
+					dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryTypeName());
+			psTextureParam.setLong(5, surfaceDataId);
+			psTextureParam.setLong(6, surfaceGeometryId);
+			addBatch();
+			
+		}
 	}
 
 	public void insert(long surfaceDataId, long surfaceGeometryId) throws SQLException {
@@ -83,7 +101,8 @@ public class DBTextureParam implements DBImporter {
 		psTextureParam.setNull(4, dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryType(),
 				dbImporterManager.getDatabaseAdapter().getGeometryConverter().getNullGeometryTypeName());
 		psTextureParam.setLong(5, surfaceDataId);
-
+		psTextureParam.setNull(6, Types.NULL);
+		
 		addBatch();
 	}
 

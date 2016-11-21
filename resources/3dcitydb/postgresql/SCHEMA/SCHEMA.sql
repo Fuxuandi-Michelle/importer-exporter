@@ -42,7 +42,7 @@
 CREATE SCHEMA citydb;
 -- ddl-end --
 
---SET search_path TO pg_catalog,public,citydb;
+-- SET search_path TO pg_catalog,public,citydb;
 -- ddl-end --
 
 -- object: postgis | type: EXTENSION --
@@ -1401,7 +1401,7 @@ CREATE TABLE citydb.tex_image(
 	tex_mime_type character varying(256),
 	tex_mime_type_codespace character varying(4000),
 	CONSTRAINT tex_image_pk PRIMARY KEY (id)
-	 WITH (FILLFACTOR = 10)
+	 WITH (FILLFACTOR = 100)
 
 );
 -- ddl-end --
@@ -3571,10 +3571,10 @@ CREATE INDEX tunnel_furn_lod4brep_fkx ON citydb.tunnel_furniture
 -- object: tunnel_furn_lod4xgeom_spx | type: INDEX --
 -- DROP INDEX IF EXISTS citydb.tunnel_furn_lod4xgeom_spx CASCADE;
 CREATE INDEX tunnel_furn_lod4xgeom_spx ON citydb.tunnel_furniture
-	USING btree
+	USING gist
 	(
-	  lod4_other_geom ASC NULLS LAST
-	)	WITH (FILLFACTOR = 90);
+	  lod4_other_geom
+	);
 -- ddl-end --
 
 -- object: tunnel_furn_lod4impl_fkx | type: INDEX --
@@ -6440,3 +6440,5 @@ ALTER TABLE citydb.external_reference ADD CONSTRAINT ext_ref_cityobject_fk FOREI
 REFERENCES citydb.cityobject (id) MATCH FULL
 ON DELETE NO ACTION ON UPDATE CASCADE;
 -- ddl-end --
+
+

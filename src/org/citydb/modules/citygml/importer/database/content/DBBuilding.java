@@ -42,6 +42,7 @@ import org.citydb.modules.citygml.common.database.xlink.DBXlinkBasic;
 import org.citydb.modules.citygml.common.database.xlink.DBXlinkSurfaceGeometry;
 import org.citydb.util.Util;
 import org.citygml4j.model.citygml.CityGMLClass;
+import org.citygml4j.model.citygml.ade.ADEComponent;
 import org.citygml4j.model.citygml.building.AbstractBoundarySurface;
 import org.citygml4j.model.citygml.building.AbstractBuilding;
 import org.citygml4j.model.citygml.building.BoundarySurfaceProperty;
@@ -53,6 +54,18 @@ import org.citygml4j.model.citygml.building.IntBuildingInstallation;
 import org.citygml4j.model.citygml.building.IntBuildingInstallationProperty;
 import org.citygml4j.model.citygml.building.InteriorRoomProperty;
 import org.citygml4j.model.citygml.building.Room;
+import org.citygml4j.model.citygml.buildingExtra.Beam;
+import org.citygml4j.model.citygml.buildingExtra.Column;
+import org.citygml4j.model.citygml.buildingExtra.Covering;
+import org.citygml4j.model.citygml.buildingExtra.FlowTerminal;
+import org.citygml4j.model.citygml.buildingExtra.Railing;
+import org.citygml4j.model.citygml.buildingExtra.Ramp;
+import org.citygml4j.model.citygml.buildingExtra.RampFlight;
+import org.citygml4j.model.citygml.buildingExtra.Slab;
+import org.citygml4j.model.citygml.buildingExtra.Stair;
+import org.citygml4j.model.citygml.buildingExtra.StairFlight;
+import org.citygml4j.model.citygml.buildingExtra.Storey;
+import org.citygml4j.model.citygml.buildingExtra.StoreyProperty;
 import org.citygml4j.model.citygml.core.Address;
 import org.citygml4j.model.citygml.core.AddressProperty;
 import org.citygml4j.model.gml.basicTypes.DoubleOrNull;
@@ -75,7 +88,22 @@ public class DBBuilding implements DBImporter {
 	private DBRoom roomImporter;
 	private DBAddress addressImporter;
 	private DBOtherGeometry otherGeometryImporter;
-
+	
+	//buildingExtra Importer
+	
+	private DBStorey storeyImporter;
+	private DBBeam beamImporter;
+	private DBBuildingColumn buildingColumnImporter;
+	private DBCovering coveringImporter;
+	private DBFlowTerminal flowTerminalImporter;
+	private DBRailing railingImporter;
+	private DBRamp rampImporter;
+	private DBRampFlight rampFlightImporter;
+	private DBSlab slabImporter;
+	private DBStair stairImporter;
+	private DBStairFlight stairFlightImporter;
+	
+	
 	private int batchCounter;
 	private int nullGeometryType;
 	private String nullGeometryTypeName;	
@@ -107,6 +135,22 @@ public class DBBuilding implements DBImporter {
 		roomImporter = (DBRoom)dbImporterManager.getDBImporter(DBImporterEnum.ROOM);
 		addressImporter = (DBAddress)dbImporterManager.getDBImporter(DBImporterEnum.ADDRESS);
 		otherGeometryImporter = (DBOtherGeometry)dbImporterManager.getDBImporter(DBImporterEnum.OTHER_GEOMETRY);
+		
+		//buildingExtra Importer Initialize
+		
+		storeyImporter = (DBStorey)dbImporterManager.getDBImporter(DBImporterEnum.STOREY);
+		beamImporter = (DBBeam)dbImporterManager.getDBImporter(DBImporterEnum.BEAM);
+		buildingColumnImporter = (DBBuildingColumn)dbImporterManager.getDBImporter(DBImporterEnum.BUILDING_COLUMN);
+		coveringImporter = (DBCovering)dbImporterManager.getDBImporter(DBImporterEnum.COVERING);
+		flowTerminalImporter = (DBFlowTerminal)dbImporterManager.getDBImporter(DBImporterEnum.FLOW_TERMINAL);
+		railingImporter = (DBRailing)dbImporterManager.getDBImporter(DBImporterEnum.RAILING);
+		rampImporter = (DBRamp)dbImporterManager.getDBImporter(DBImporterEnum.RAMP);
+		rampFlightImporter = (DBRampFlight)dbImporterManager.getDBImporter(DBImporterEnum.RAMP_FLIGHT);
+		slabImporter = (DBSlab)dbImporterManager.getDBImporter(DBImporterEnum.SLAB);
+		stairImporter = (DBStair)dbImporterManager.getDBImporter(DBImporterEnum.STAIR);
+		stairFlightImporter = (DBStairFlight)dbImporterManager.getDBImporter(DBImporterEnum.STAIR_FLIGHT);
+		
+		
 	}
 
 	public long insert(AbstractBuilding building) throws SQLException {
@@ -461,7 +505,42 @@ public class DBBuilding implements DBImporter {
 		psBuilding.addBatch();
 		if (++batchCounter == dbImporterManager.getDatabaseAdapter().getMaxBatchSize())
 			dbImporterManager.executeBatch(DBImporterEnum.BUILDING);
-
+		
+		
+		//containStorey
+		if(building.isSetGenericApplicationPropertyOfAbstractBuilding()) {
+			System.out.println("---------------------import building storey----------------------");
+			for(ADEComponent adeComponent : building.getGenericApplicationPropertyOfAbstractBuilding()) {
+				if(adeComponent instanceof StoreyProperty) {
+					Storey storey = ((StoreyProperty)adeComponent).getStorey();
+					if(storey != null) {
+						String gmlId = storey.getId();
+						long id = storeyImporter.insert(storey, building.getCityGMLClass(), buildingId);
+						
+						if(id == 0) {
+							StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
+									building.getCityGMLClass(), 
+									origGmlId));
+							msg.append(": Failed to write");
+							msg.append(Util.getFeatureSignature(
+									storey.getCityGMLClass(),
+									gmlId));
+							LOG.error(msg.toString());
+							
+						}
+						((StoreyProperty)adeComponent).unsetStorey();
+					} else {
+						String href = ((StoreyProperty)adeComponent).getHref();
+						
+						if(href != null && href.length() != 0) {
+							LOG.error("XLink reference '" + href + "' to " + CityGMLClass.STOREY + " feature is not supported.");
+						}
+					}
+					
+				}
+			}
+		}
+		
 		// BoundarySurfaces
 		if (building.isSetBoundedBySurface()) {
 			for (BoundarySurfaceProperty boundarySurfaceProperty : building.getBoundedBySurface()) {
@@ -469,8 +548,10 @@ public class DBBuilding implements DBImporter {
 
 				if (boundarySurface != null) {
 					String gmlId = boundarySurface.getId();
+					
+					System.out.println("thematic surface gml id: " + gmlId);
 					long id = thematicSurfaceImporter.insert(boundarySurface, building.getCityGMLClass(), buildingId);
-
+					System.out.println("thematic surface id: " + id);
 					if (id == 0) {
 						StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
 								building.getCityGMLClass(), 
@@ -498,13 +579,39 @@ public class DBBuilding implements DBImporter {
 
 		// BuildingInstallation
 		if (building.isSetOuterBuildingInstallation()) {
+			System.out.println("---------------------import building installation----------------------");
 			for (BuildingInstallationProperty buildingInstProperty : building.getOuterBuildingInstallation()) {
 				BuildingInstallation buildingInst = buildingInstProperty.getBuildingInstallation();
 
 				if (buildingInst != null) {
 					String gmlId = buildingInst.getId();
-					long id = buildingInstallationImporter.insert(buildingInst, building.getCityGMLClass(), buildingId);
-
+					
+					//test class of buildingInstallation
+					long id = 0;
+					
+					if(buildingInst instanceof Beam)
+						id = beamImporter.insert((Beam) buildingInst, building.getCityGMLClass(), buildingId);
+					else if(buildingInst instanceof Column)
+						id = buildingColumnImporter.insert((Column)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof Covering)
+						id = coveringImporter.insert((Covering)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof FlowTerminal)
+						id = flowTerminalImporter.insert((FlowTerminal)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof Railing)
+						id = railingImporter.insert((Railing)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof Ramp)
+						id = rampImporter.insert((Ramp)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof RampFlight)
+						id = rampFlightImporter.insert((RampFlight)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof Slab)
+						id = slabImporter.insert((Slab)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof Stair)
+						id = stairImporter.insert((Stair)buildingInst,building.getCityGMLClass(),buildingId);
+					else if(buildingInst instanceof StairFlight)
+						id = stairFlightImporter.insert((StairFlight)buildingInst,building.getCityGMLClass(),buildingId);
+					else
+						id = buildingInstallationImporter.insert(buildingInst, building.getCityGMLClass(), buildingId);
+						
 					if (id == 0) {
 						StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
 								building.getCityGMLClass(), 
@@ -532,6 +639,7 @@ public class DBBuilding implements DBImporter {
 
 		// IntBuildingInstallation
 		if (building.isSetInteriorBuildingInstallation()) {
+			System.out.println("---------------------import building interior building installation----------------------");
 			for (IntBuildingInstallationProperty intBuildingInstProperty : building.getInteriorBuildingInstallation()) {
 				IntBuildingInstallation intBuildingInst = intBuildingInstProperty.getIntBuildingInstallation();
 
@@ -566,12 +674,13 @@ public class DBBuilding implements DBImporter {
 
 		// Room
 		if (building.isSetInteriorRoom()) {
+			System.out.println("---------------------import building room----------------------");
 			for (InteriorRoomProperty roomProperty : building.getInteriorRoom()) {
 				Room room = roomProperty.getRoom();
 
 				if (room != null) {
 					String gmlId = room.getId();
-					long id = roomImporter.insert(room, buildingId);
+					long id = roomImporter.insert(room, building.getCityGMLClass(), buildingId);
 
 					if (id == 0) {
 						StringBuilder msg = new StringBuilder(Util.getFeatureSignature(
@@ -671,7 +780,8 @@ public class DBBuilding implements DBImporter {
 				}
 			}
 		}
-
+		
+		
 		// insert local appearance
 		cityObjectImporter.insertAppearance(building, buildingId);
 

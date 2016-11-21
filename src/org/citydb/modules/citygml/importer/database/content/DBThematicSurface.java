@@ -65,8 +65,10 @@ public class DBThematicSurface implements DBImporter {
 
 	private void init() throws SQLException {
 		StringBuilder stmt = new StringBuilder()
-		.append("insert into THEMATIC_SURFACE (ID, OBJECTCLASS_ID, BUILDING_ID, ROOM_ID, BUILDING_INSTALLATION_ID, LOD2_MULTI_SURFACE_ID, LOD3_MULTI_SURFACE_ID, LOD4_MULTI_SURFACE_ID) values ")
-		.append("(?, ?, ?, ?, ?, ?, ?, ?)");
+		.append("insert into THEMATIC_SURFACE (ID, OBJECTCLASS_ID, BUILDING_ID, ROOM_ID, BUILDING_INSTALLATION_ID, LOD2_MULTI_SURFACE_ID, LOD3_MULTI_SURFACE_ID, LOD4_MULTI_SURFACE_ID, ")
+		.append("STOREY_ID, PODIUM_ID, BEAM_ID,BUILDING_COLUMN_ID, COVERING_ID, FLOW_TERMINAL_ID, RAILING_ID, ")
+		.append("RAMP_ID, RAMP_FLIGHT_ID, SLAB_ID, STAIR_ID, STAIR_FLIGHT_ID) values")
+		.append("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 		psThematicSurface = batchConn.prepareStatement(stmt.toString());
 
 		surfaceGeometryImporter = (DBSurfaceGeometry)dbImporterManager.getDBImporter(DBImporterEnum.SURFACE_GEOMETRY);
@@ -90,7 +92,9 @@ public class DBThematicSurface implements DBImporter {
 
 		// OBJECTCLASS_ID
 		psThematicSurface.setInt(2, Util.cityObject2classId(boundarySurface.getCityGMLClass()));
-
+		
+	
+		int idIndex = 0;
 		// parentId
 		switch (parent) {
 		case BUILDING:
@@ -110,11 +114,48 @@ public class DBThematicSurface implements DBImporter {
 			psThematicSurface.setNull(4, Types.NULL);
 			psThematicSurface.setLong(5, parentId);
 			break;
+		case STOREY: idIndex = 9; break;
+		case PODIUM: idIndex = 10; break;
+		case BEAM: idIndex = 11; break;
+		case COLUMN: idIndex = 12; break;
+		case COVERING: idIndex = 13; break;
+		case FLOW_TERMINAL: idIndex = 14; break;
+		case RAILING: idIndex = 15; break;
+		case RAMP: idIndex = 16; break;
+		case RAMP_FLIGHT: idIndex = 17; break;
+		case SLAB: idIndex = 18; break;
+		case STAIR: idIndex = 19; break;
+		case STAIR_FLIGHT: idIndex = 20; break;
+		
 		default:
 			psThematicSurface.setNull(3, Types.NULL);
 			psThematicSurface.setNull(4, Types.NULL);
 			psThematicSurface.setNull(5, Types.NULL);
+			
+			
+			
 		}
+		
+		if(idIndex != 0) {
+			psThematicSurface.setNull(3, Types.NULL);
+			psThematicSurface.setNull(4, Types.NULL);
+			psThematicSurface.setNull(5, Types.NULL);
+			
+			for(int i = 9; i <= 20; i++) {
+				if(i == idIndex) 
+					psThematicSurface.setLong(idIndex, parentId);
+				else 
+					psThematicSurface.setNull(i, Types.NULL);
+			}
+				
+		} else {
+			
+			for(int i = 9; i <= 20; i++) {
+				psThematicSurface.setNull(i, Types.NULL);
+			}
+			
+		}
+			
 
 		// Geometry
 		for (int i = 0; i < 3; i++) {
@@ -135,7 +176,9 @@ public class DBThematicSurface implements DBImporter {
 
 			if (multiSurfaceProperty != null) {
 				if (multiSurfaceProperty.isSetMultiSurface()) {
+					System.out.println("start insert multisurface");
 					multiSurfaceId = surfaceGeometryImporter.insert(multiSurfaceProperty.getMultiSurface(), boundarySurfaceId);
+					System.out.println("Insert Thematic Surface: lod "+(i+2) + "multisurface, Id: " + multiSurfaceId);
 					multiSurfaceProperty.unsetMultiSurface();
 				} else {
 					// xlink
