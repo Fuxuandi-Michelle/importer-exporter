@@ -1,6 +1,8 @@
 BuildingExtra ADE module 
 =====
-![dd]https://github.com/Fuxuandi-Michelle/importer-exporter-BuildingADE/uml_bldg_ALL.png
+![BuildingExtra Module](https://github.com/Fuxuandi-Michelle/importer-exporter-BuildingADE/uml_bldgEx_ALL.png)
+![Podium](https://github.com/Fuxuandi-Michelle/importer-exporter-BuildingADE/uml_bldgEx_Podium.png)
+![Storey](https://github.com/Fuxuandi-Michelle/importer-exporter-BuildingADE/uml_bldgEx_Storey.png)
 
 3D City Database Importer/Exporter
 ==================================
