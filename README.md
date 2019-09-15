@@ -1,12 +1,15 @@
-BuildingExtra ADE module 
+Extended 3D-CityDB-importer/exporter with BuildingExtra ADE module 
 =====
-Overall Design of BuildingExtra Module
+Extend BuildingExtra ADE module to CityGML2.0 to cover LOD4 building features. 
+
+
+* Overall Design of BuildingExtra ADE Module
 ![BuildingExtra Module](/uml_bldgEx_ALL.png)
 
-Detailed Design for Podium Feature
+* Detailed Design for Podium Feature
 ![Podium Feature](/uml_bldgEx_Podium.png)
 
-Detailed Design for Storey Feature
+* Detailed Design for Storey Feature
 ![Storey Feature](/uml_bldgEx_Storey.png)
 
 3D City Database Importer/Exporter
